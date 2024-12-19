@@ -1,6 +1,6 @@
 //! XSalsa20 is an extended nonce variant of Salsa20
 
-use super::{Key, Nonce, SalsaCore, Unsigned, XNonce, CONSTANTS};
+use super::{Key, Nonce, SalsaCore, Unsigned, XNonce};
 use cipher::{
     array::Array,
     consts::{U10, U16, U24, U32, U4, U6, U64},
@@ -25,7 +25,7 @@ pub type XSalsa12 = StreamCipherCoreWrapper<XSalsaCore<U6>>;
 pub type XSalsa8 = StreamCipherCoreWrapper<XSalsaCore<U4>>;
 
 /// The XSalsa core function.
-pub struct XSalsaCore<R: Unsigned>(SalsaCore<R>);
+pub struct XSalsaCore<R: Unsigned>(SalsaCore<R, U32>);
 
 impl<R: Unsigned> KeySizeUser for XSalsaCore<R> {
     type KeySize = U32;
@@ -41,7 +41,7 @@ impl<R: Unsigned> BlockSizeUser for XSalsaCore<R> {
 
 impl<R: Unsigned> KeyIvInit for XSalsaCore<R> {
     #[inline]
-    fn new(key: &Key, iv: &XNonce) -> Self {
+    fn new(key: &Key<U32>, iv: &XNonce) -> Self {
         let subkey = hsalsa::<R>(key, iv[..16].try_into().unwrap());
         let mut padded_iv = Nonce::default();
         padded_iv.copy_from_slice(&iv[16..]);
@@ -90,29 +90,30 @@ impl<R: Unsigned> ZeroizeOnDrop for XSalsaCore<R> {}
 /// - Nonce (`u32` x 4)
 ///
 /// It produces 256-bits of output suitable for use as a Salsa20 key
-pub fn hsalsa<R: Unsigned>(key: &Key, input: &Array<u8, U16>) -> Array<u8, U32> {
+pub fn hsalsa<R: Unsigned>(key: &Key<U32>, input: &Array<u8, U16>) -> Array<u8, U32> {
     #[inline(always)]
     fn to_u32(chunk: &[u8]) -> u32 {
         u32::from_le_bytes(chunk.try_into().unwrap())
     }
 
     let mut state = [0u32; 16];
-    state[0] = CONSTANTS[0];
+    let constants = crate::constants(key.len());
+    state[0] = constants[0];
     state[1..5]
         .iter_mut()
         .zip(key[0..16].chunks_exact(4))
         .for_each(|(v, chunk)| *v = to_u32(chunk));
-    state[5] = CONSTANTS[1];
+    state[5] = constants[1];
     state[6..10]
         .iter_mut()
         .zip(input.chunks_exact(4))
         .for_each(|(v, chunk)| *v = to_u32(chunk));
-    state[10] = CONSTANTS[2];
+    state[10] = constants[2];
     state[11..15]
         .iter_mut()
         .zip(key[16..].chunks_exact(4))
         .for_each(|(v, chunk)| *v = to_u32(chunk));
-    state[15] = CONSTANTS[3];
+    state[15] = constants[3];
 
     // 20 rounds consisting of 10 column rounds and 10 diagonal rounds
     for _ in 0..R::USIZE {

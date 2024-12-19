@@ -3,8 +3,9 @@ use crate::{
     STATE_WORDS,
 };
 use cipher::{
+    array::ArraySize,
     consts::{U1, U64},
-    BlockSizeUser, ParBlocksSizeUser, StreamCipherBackend,
+    ArrayLength, BlockSizeUser, ParBlocksSizeUser, StreamCipherBackend,
 };
 use core::marker::PhantomData;
 
@@ -15,9 +16,10 @@ use core::arch::x86_64::*;
 
 #[inline]
 #[target_feature(enable = "sse2")]
-pub(crate) unsafe fn inner<R, F>(state: &mut [u32; STATE_WORDS], f: F)
+pub(crate) unsafe fn inner<R, K, F>(state: &mut [u32; STATE_WORDS], f: F)
 where
     R: Unsigned,
+    K: ArraySize,
     F: StreamCipherClosure<BlockSize = U64>,
 {
     let state_ptr = state.as_ptr() as *const __m128i;
@@ -36,27 +38,28 @@ where
         f.call(&mut backend);
         state[8] = _mm_cvtsi128_si32(backend.v[2]) as u32;
     } else {
-        f.call(&mut SoftBackend(&mut SalsaCore::<R> {
+        f.call(&mut SoftBackend(&mut SalsaCore::<R, K> {
             state: *state,
             rounds: PhantomData,
         }));
     }
 }
 
-struct Backend<R: Unsigned> {
+struct Backend<R: Unsigned, K: ArraySize> {
     v: [__m128i; 4],
     _pd: PhantomData<R>,
+    _pk: PhantomData<K>,
 }
 
-impl<R: Unsigned> BlockSizeUser for Backend<R> {
+impl<R: Unsigned, K: ArraySize> BlockSizeUser for Backend<R, K> {
     type BlockSize = U64;
 }
 
-impl<R: Unsigned> ParBlocksSizeUser for Backend<R> {
+impl<R: Unsigned, K: ArraySize> ParBlocksSizeUser for Backend<R, K> {
     type ParBlocksSize = U1;
 }
 
-impl<R: Unsigned> StreamCipherBackend for Backend<R> {
+impl<R: Unsigned, K: ArraySize> StreamCipherBackend for Backend<R, K> {
     #[inline(always)]
     fn gen_ks_block(&mut self, block: &mut Block<Self>) {
         unsafe {

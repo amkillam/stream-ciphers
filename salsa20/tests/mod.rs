@@ -87,6 +87,78 @@ const EXPECTED_XSALSA20_ZEROS: [u8; 64] = hex!(
 
 const EXPECTED_XSALSA20_HELLO_WORLD: [u8; 12] = hex!("002d4513843fc240c401e541");
 
+const THIRTY_TWO_BYTE_KEY_CONSTANTS: [u32; 4] =
+    [0x6170_7865, 0x3320_646e, 0x7962_2d32, 0x6b20_6574];
+const SIXTEEN_BYTE_KEY_CONSTANTS: [u32; 4] = [0x6170_7865, 0x3120_646e, 0x7962_2d36, 0x6b20_6574];
+const NINETY_NINE_BYTE_KEY_CONSTANTS: [u32; 4] =
+    [0x6170_7865, 0x3920_646e, 0x7962_2d39, 0x6b20_6574];
+
+#[test]
+fn key_constants() {
+    assert_eq!(
+        b"expand 32-byte k"
+            .chunks(4)
+            .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+            .collect::<Vec<_>>(),
+        THIRTY_TWO_BYTE_KEY_CONSTANTS.to_vec()
+    );
+    assert_eq!(
+        salsa20::constants(32),
+        THIRTY_TWO_BYTE_KEY_CONSTANTS,
+        "expected: {:?}, got: {:?}",
+        THIRTY_TWO_BYTE_KEY_CONSTANTS
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>(),
+        salsa20::constants(32)
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>()
+    );
+
+    assert_eq!(
+        b"expand 16-byte k"
+            .chunks(4)
+            .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+            .collect::<Vec<_>>(),
+        SIXTEEN_BYTE_KEY_CONSTANTS.to_vec()
+    );
+    assert_eq!(
+        salsa20::constants(16),
+        SIXTEEN_BYTE_KEY_CONSTANTS,
+        "expected: {:?}, got: {:?}",
+        SIXTEEN_BYTE_KEY_CONSTANTS
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>(),
+        salsa20::constants(16)
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>()
+    );
+
+    assert_eq!(
+        b"expand 99-byte k"
+            .chunks(4)
+            .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+            .collect::<Vec<_>>(),
+        NINETY_NINE_BYTE_KEY_CONSTANTS.to_vec()
+    );
+    assert_eq!(
+        salsa20::constants(99),
+        NINETY_NINE_BYTE_KEY_CONSTANTS,
+        "expected: {:?}, got: {:?}",
+        NINETY_NINE_BYTE_KEY_CONSTANTS
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>(),
+        salsa20::constants(99)
+            .iter()
+            .map(|c| format!("{:08x}", c))
+            .collect::<Vec<_>>()
+    );
+}
+
 #[test]
 fn salsa20_key1_iv0() {
     let mut cipher = Salsa20::new(&KEY1.into(), &IV0.into());
@@ -179,11 +251,14 @@ fn xsalsa20_encrypt_hello_world() {
 #[test]
 fn salsa20_regression_2024_03() {
     use salsa20::{
-        cipher::{typenum::U4, StreamCipherCore},
+        cipher::{
+            typenum::{U32, U4},
+            StreamCipherCore,
+        },
         SalsaCore,
     };
 
-    type Salsa20_8 = SalsaCore<U4>;
+    type Salsa20_8 = SalsaCore<U4, U32>;
 
     let mut x : [u8; 64] = hex!("8dcf83fa131d44aaa4241dc58a86d0851d5cb1815e05cc0b8da1f4a39b2ef6a5db2f2bec267136a57a78930da84da1e1984baeb30aca20642c4da8a4cb42fb4f");
     let t2: [u32; 16] = [
