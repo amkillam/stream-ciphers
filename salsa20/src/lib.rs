@@ -209,7 +209,7 @@ impl<R: Unsigned, K: ArraySize> KeyIvInit for SalsaCore<R, K> {
         let constants = constants(key.len());
         state[0] = constants[0];
 
-        for (i, chunk) in key[..16].chunks(4).enumerate() {
+        for (i, chunk) in key[..key.len().min(16)].chunks(4).enumerate() {
             state[1 + i] = u32::from_le_bytes(chunk.try_into().unwrap());
         }
 
@@ -223,7 +223,7 @@ impl<R: Unsigned, K: ArraySize> KeyIvInit for SalsaCore<R, K> {
         state[9] = 0;
         state[10] = constants[2];
 
-        for (i, chunk) in key[key.len() - 16..].chunks(4).enumerate() {
+        for (i, chunk) in key[key.len().saturating_sub(16)..].chunks(4).enumerate() {
             state[11 + i] = u32::from_le_bytes(chunk.try_into().unwrap());
         }
 
