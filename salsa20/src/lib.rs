@@ -258,7 +258,7 @@ impl<R: Unsigned, K: ArraySize> StreamCipherCore for SalsaCore<R, K> {
         cfg_if! {
             if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
                 unsafe {
-                    backends::sse2::inner::<R, _>(&mut self.state, f);
+                    backends::sse2::inner::<R, K, _>(&mut self.state, f);
                 }
             } else {
                 f.call(&mut backends::soft::Backend(self));

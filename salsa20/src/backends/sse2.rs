@@ -5,7 +5,7 @@ use crate::{
 use cipher::{
     array::ArraySize,
     consts::{U1, U64},
-    ArrayLength, BlockSizeUser, ParBlocksSizeUser, StreamCipherBackend,
+    BlockSizeUser, ParBlocksSizeUser, StreamCipherBackend,
 };
 use core::marker::PhantomData;
 
@@ -23,7 +23,7 @@ where
     F: StreamCipherClosure<BlockSize = U64>,
 {
     let state_ptr = state.as_ptr() as *const __m128i;
-    let mut backend = Backend::<R> {
+    let mut backend = Backend::<R, K> {
         v: [
             _mm_loadu_si128(state_ptr.add(0)),
             _mm_loadu_si128(state_ptr.add(1)),
@@ -31,6 +31,7 @@ where
             _mm_loadu_si128(state_ptr.add(3)),
         ],
         _pd: PhantomData,
+        _pk: PhantomData,
     };
 
     // The SSE2 backend only works for Salsa20/20. Any other variant will fallback to the soft backend.
@@ -41,6 +42,7 @@ where
         f.call(&mut SoftBackend(&mut SalsaCore::<R, K> {
             state: *state,
             rounds: PhantomData,
+            key: PhantomData,
         }));
     }
 }
